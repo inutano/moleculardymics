@@ -22,8 +22,17 @@ On release, automated continuous integration tests run the pipeline on a full-si
 
 <!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->
 
-1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
-2. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
+1. Fetching PDB Structure
+2. Fix Protein Structure
+3. Create Protein System Topology
+4. Create Solvent Box
+5. Fill the Box with Water Molecules
+6. Adding Ions
+7. Energetically Minimize the System
+8. Equilibrate the System (NVT)
+9. Equilibrate the System (NPT)
+10. Free Molecular Dynamics Simulation
+11. Post-processing and Visualizing Resulting 3D Trajectory
 
 ## Quick Start
 

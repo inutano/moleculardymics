@@ -30,42 +30,41 @@ params.pdb = 'input.pdb'
 
 process preparePDB {
     input:
-    path input // path pdbFile	
+    path input	
 
     output:
-    file processedFile into '1D5R_processed.gro'
-    // path "${}"
+    path("${params.init}.gro")
 
     shell:
     '''
-    gmx pdb2gmx -f ${pdbFile} -o ${processedFile} -water spce
+    gmx pdb2gmx -f ${params.init}.pdb -o ${params.init}.gro -water spce
     '''
 }
 
 process createNewBox {
     input:
-    file processedFile from preparePDB.processedFile
-    // path processedFile  <- the workflow would do the handling of channels
-    // and telling the process where it gets its input from
+    path input.gro
 
     output:
-    file newBoxFile into '1D5R_newbox.gro'
+    path("${params.init}.gro")
 
     shell:
     '''
-    gmx editconf -f ${processedFile} -o ${newBoxFile} -c -d 1.0 -bt cubic
+    gmx editconf -f ${params.init}.gro -o ${params.init}.gro -c -d 1.0 -bt cubic
     '''
 }
 
 process solvate {
     input:
-    file newBoxFile from createNewBox.newBoxFile
+    path input.gro
     output:
-    file solvatedFile into '1D5R_solv.gro'
+    path("${params.init}.gro")
+    path("topol.top")
+
 
     shell:
     '''
-    gmx genbox -cp ${newBoxFile} -cs spc216.gro -o ${solvatedFile} -p topol.top
+    gmx genbox -cp ${params.init}.gro -cs spc216.gro -o ${params.init}.gro -p topol.top
     '''
 }
 

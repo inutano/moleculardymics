@@ -26,12 +26,11 @@ params.init = 'input'
 params.mini_prefix = 'mini'
 params.equi_prefix = 'nvt'
 params.prod_prefix = 'npt'
-
+params.pdb = 'input.pdb'
 
 process preparePDB {
     input:
-    file pdbFile from '1D5R.pdb'
-		// path pdbFile
+    path input // path pdbFile	
 
     output:
     file processedFile into '1D5R_processed.gro'
@@ -144,10 +143,8 @@ process figures {
 }
 
 workflow simulation {
-    process preparePDB
-    process createNewBox
-    process solvate
-    process ionize
+    prepare_PDB_ch = Channel.fromPath(params.pdb)
+    preparePDB(prepare_PDB_ch)
 
     ch1 = Channel.fromPath('topol.top')
     ch2 = Channel.fromPath('index.ndx')

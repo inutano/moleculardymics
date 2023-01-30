@@ -37,16 +37,16 @@ process preparePDB {
 
     shell:
     '''
-    gmx pdb2gmx -f ${params.init}.pdb -o ${params.init}.gro -water spce
+    gmx pdb2gmx -f ${input} -o ${params.init}.gro -water spce
     '''
 }
 
 process createNewBox {
     input:
-    path input.gro
+    path input
 
     output:
-    path("${params.init}.gro")
+    path("${params.init}_processed.gro")
 
     shell:
     '''
@@ -56,9 +56,9 @@ process createNewBox {
 
 process solvate {
     input:
-    path input.gro
+    path input
     output:
-    path("${params.init}.gro")
+    path("${params.init}_solvated.gro")
     path("topol.top")
 
 
@@ -144,6 +144,9 @@ process figures {
 workflow simulation {
     prepare_PDB_ch = Channel.fromPath(params.pdb)
     preparePDB(prepare_PDB_ch)
+    
+    
+    
 
     ch1 = Channel.fromPath('topol.top')
     ch2 = Channel.fromPath('index.ndx')

@@ -78,7 +78,7 @@ process ionize {
     shell:
     '''
     gmx grompp -f ions.mdp -c ${input} -p topol.top -o ions.tpr
-    gmx genion -s ions.tpr -o ${ionizedFile} -p topol.top -pname NA -nname CL -nn 12
+    gmx genion -s ions.tpr -o ${input} -p topol.top -pname NA -nname CL -nn 12
     '''
 }
 
@@ -136,31 +136,28 @@ process figures {
         path("pressure.xvg")
     script:
     """
-    echo 12 | gmx energy -f mini.edr -o energy.xvg
-    echo 16 | gmx energy -f nvt.edr -o temp.xvg
-    echo 17 | gmx energy -f npt.edr -o pressure.xvg
+    echo 12 | gmx energy -f ${params.mini_prefix}.edr -o energy.xvg
+    echo 16 | gmx energy -f ${params.equi_prefix} -o temp.xvg
+    echo 17 | gmx energy -f ${params.prod_prefix} -o pressure.xvg
     """
 }
 
 workflow simulation {
     prepare_PDB_ch = Channel.fromPath(params.pdb)
-    preparePDB(prepare_PDB_ch)
+    preparePDB(prepare_PDB_ch) | createNewBox | solvate | ionize | minimization | equilibration | production
     
-    
-    
-
-    ch1 = Channel.fromPath('topol.top')
-    ch2 = Channel.fromPath('index.ndx')
-    minimization(ch1, ch2)
+//    createNewBox_ch = Channel.fromPath('topol.top')
+//    ch2 = Channel.fromPath('index.ndx')
+//   minimization(ch1, ch2)
 
 
-    input:
-        file('input.gro')
-    output:
-        file("energy.xvg"),
-        file("temp.xvg"),
-        file("pressure.xvg")
-    minimization, equilibration, production, figures
+ //   input:
+ //       file('input.gro')
+ //   output:
+ //       file("energy.xvg"),
+ //      file("temp.xvg"),
+ //      file("pressure.xvg")
+ //  minimization, equilibration, production, figures
 }
 
 

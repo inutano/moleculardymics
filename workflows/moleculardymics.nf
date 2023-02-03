@@ -43,14 +43,14 @@ process preparePDB {
 
 process createNewBox {
     input:
-    path input
+    path ${params.init}.gro"
 
     output:
     path("${params.init}_processed.gro")
 
     shell:
     '''
-    gmx editconf -f ${input} -o ${params.init}_processed.gro -c -d 1.0 -bt cubic
+    gmx editconf -f ${params.init}.gro" -o ${params.init}_processed.gro -c -d 1.0 -bt cubic
     '''
 }
 

@@ -50,7 +50,7 @@ process createNewBox {
 
     shell:
     '''
-    gmx editconf -f ${params.init}.gro -o ${params.init}.gro -c -d 1.0 -bt cubic
+    gmx editconf -f ${input} -o ${params.init}_processed.gro -c -d 1.0 -bt cubic
     '''
 }
 
@@ -64,19 +64,20 @@ process solvate {
 
     shell:
     '''
-    gmx genbox -cp ${params.init}.gro -cs spc216.gro -o ${params.init}.gro -p topol.top
+    gmx genbox -cp ${input} -cs spc216.gro -o ${params.init}_solvated.gro -p topol.top
     '''
 }
 
 process ionize {
     input:
-    file solvatedFile from solvate.solvatedFile
+    path input
     output:
-    file ionizedFile into '1D5R_solv_ions.gro'
+    path("${params.init}_ionized.gro")
+    path("topol.top")
 
     shell:
     '''
-    gmx grompp -f ions.mdp -c ${solvatedFile} -p topol.top -o ions.tpr
+    gmx grompp -f ions.mdp -c ${input} -p topol.top -o ions.tpr
     gmx genion -s ions.tpr -o ${ionizedFile} -p topol.top -pname NA -nname CL -nn 12
     '''
 }

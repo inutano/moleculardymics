@@ -71,21 +71,35 @@ process solvate {
     """
 }
 
-process ionize {
+process prepare_ionize {
     input:
+    path ions_mdp
     path gro_file
     path topol_file
-    path ions_mdp
 
     output:
-    path("${params.init}_ionized.gro"), emit: gro_ionised
     path 'ions.tpr', emit: ions_tpr
     path 'topol.top', emit: topology
 
     shell:
     """
-    gmx grompp -f ions.mdp -c ${params.init}_solvated.gro -p ${topol_file} -o ions.tpr
-    echo 13 | gmx genion -s ions.tpr -o ${params.init}_ionized.gro -p ${topol_file} -pname NA -nname CL -neutral
+    gmx grompp -f ${ions_mdp} -c ${params.init}_solvated.gro -p ${topol_file} -o ions.tpr
+    """
+}
+
+
+process ionize {
+    input:
+    path ions_tpr
+    path topol_file
+
+    output:
+    path("${params.init}_ionized.gro"), emit: gro_ionised
+    path 'topol.top', emit: topology
+
+    shell:
+    """
+    echo 13 | gmx genion -s ${ions_tpr} -o ${params.init}_ionized.gro -p ${topol_file} -pname NA -nname CL -neutral
     """
 }
 
@@ -155,12 +169,14 @@ workflow {
     preparePDB(prepare_PDB_ch).set {PDB}
     preparePDB.out.topology.view()
     createNewBox(preparePDB.out.gro_input) 
-    solvate(createNewBox.out.gro_processed, preparePDB.out.topology)
-    
+    solvate(createNewBox.out.gro_processed, preparePDB.out.topology).set {solvate_ch}
+   
     prepare_ions_ch = Channel.fromPath("$baseDir/ions.mdp")
-    ionize(prepare_ions_ch, solvate.out.gro_solvate, solavte.out.topology)
-     
+    prepare_ionize(prepare_ions_ch, solvate.out.gro_solvated, solvate.out.topology)
+    ionize(prepare_ionize.out.ions_tpr, prepare_ionize.out.topology)
+
     }
+
 
 
 // workflow simulation {

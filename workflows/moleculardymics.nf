@@ -26,6 +26,8 @@ params.init = 'input'
 params.mini_prefix = 'mini'
 params.equi_prefix = 'nvt'
 params.prod_prefix = 'npt'
+params.run_prefix = 'md'
+
 
 
 process preparePDB {
@@ -184,6 +186,7 @@ process prepare_npt {
     input:
     path npt_mdp
     path gro_file
+    path cpt_file
     path topol_file
     path posre_itp
 
@@ -200,7 +203,7 @@ process prepare_npt {
 
 process npt {
     input:
-    path nvt_tpr
+    path npt_tpr
     path topol_file
 
     output:
@@ -217,29 +220,55 @@ process npt {
 }
 
 
-process production {
+process prepare_md {
     input:
-        path("${params.equi_prefix}.gro")
-        path(topol.top)
-        path(index.ndx)
+    path md_mdp
+    path gro_file
+    path cpt_file
+    path topol_file
+    path posre_itp
+
     output:
-        path("${params.prod_prefix}.tpr")
-    script:
+    path("${params.run_prefix}.tpr"), emit: md_tpr
+    path 'topol.top', emit: topology
+
+    shell:
     """
-    gmx grompp -f ${params.prod_prefix}.mdp -o ${params.prod_prefix}.tpr -c ${params.equi_prefix}.gro -p topol.top -n index.ndx
+    gmx grompp -f ${md_mdp} -c ${gro_file} -r ${gro_file} -t ${params.prod_prefix}.cpt -o ${params.prod_prefix}.tpr -p ${topol_file}
+    """
+}
+
+
+process md {
+    input:
+    path npt_tpr
+    path topol_file
+
+    output:
+    path("${params.run_prefix}.gro"), emit: gro_md
+    path("${params.run_prefix}.gro"), emit: edr_md
+    path("${params.run_prefix}.gro"), emit: log_md
+    path("${params.run_prefix}.gro"), emit: trr_md
+    path 'topol.top', emit: topology
+
+    shell:
+    """
     gmx mdrun -v -deffnm ${params.prod_prefix}
     """
 }
+
 
 process figures {
     input:
         path("${params.mini_prefix}.edr")
         path("${params.equi_prefix}.edr")
         path("${params.prod_prefix}.edr")
+        
     output:
-        path("energy.xvg"),
-        path("temp.xvg"),
+        path("energy.xvg")
+        path("temp.xvg")
         path("pressure.xvg")
+        
     script:
     """
     echo 12 | gmx energy -f ${params.mini_prefix}.edr -o energy.xvg
@@ -269,32 +298,14 @@ workflow {
     nvt(prepare_nvt.out.nvt_tpr, prepare_nvt.out.topology)
 
     prepare_npt_ch = Channel.fromPath("$baseDir/npt.mdp")
-    prepare_nvt(prepare_npt_ch, nvt.out.gro_nvt, nvt.out.topology, preparePDB.out.posre_itp)
-    nvt(prepare_nvt.out.nvt_tpr, prepare_nvt.out.topology)
+    prepare_npt(prepare_npt_ch, nvt.out.gro_nvt, nvt.out.cpt_file, nvt.out.topology, preparePDB.out.posre_itp)
+    npt(prepare_npt.out.npt_tpr, prepare_npt.out.topology)
 
+    prepare_md_ch = Channel.fromPath("$baseDir/md.mdp")
+    prepare_md(prepare_md_ch, npt.out.gro_npt, npt.out.cpt_file, npt.out.topology, preparePDB.out.posre_itp)
+    md(prepare_md.out.md_tpr, prepare_md.out.topology)
 
     }
-
-
-
-
-// workflow simulation {
-//    prepare_PDB_ch = Channel.fromPath(params.pdb)
- //   preparePDB(prepare_PDB_ch) | createNewBox | solvate | ionize | minimization | equilibration | production
-    
-//    createNewBox_ch = Channel.fromPath('topol.top')
-//    ch2 = Channel.fromPath('index.ndx')
-//   minimization(ch1, ch2)
-
-
- //   input:
- //       file('input.gro')
- //   output:
- //       file("energy.xvg"),
- //      file("temp.xvg"),
- //      file("pressure.xvg")
- //  minimization, equilibration, production, figures
-}
 
 
 /*

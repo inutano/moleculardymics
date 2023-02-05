@@ -90,7 +90,7 @@ process prepare_ionize {
 
 process ionize {
     input:
-    path ions_tpr
+    path ions_tplr
     path topol_file
 
     output:
@@ -103,20 +103,41 @@ process ionize {
     """
 }
 
-
-process minimization {
-
+process prepare_minimise {
     input:
-        path(topol_top_file)  // no `'` quotes here, just a variable name - the actual filename is handled in the workflow by the channels
-        path(index_ndx_file)
+    path mini_mdp
+    path gro_file
+    path topol_file
+
     output:
-        path("${params.mini_prefix}.tpr")
-    script:
+    path("${params.mini_prefix}.tpr"), emit: mini_tpr
+    path 'topol.top', emit: topology
+
+    shell:
     """
-    gmx grompp -f ${params.mini_prefix}.mdp -o ${params.mini_prefix}.tpr -c ${params.init}.gro -r ${params.init}.gro -p ${topol_top_file} -n ${index_ndx_file} -maxwarn -1
-    gmx_d mdrun -v -deffnm ${params.mini_prefix}
+    gmx grompp -f ${mini_mdp} -o ${params.mini_prefix}.tpr -c ${gro_file} -p ${topol_file} -maxwarn -1
     """
 }
+
+
+process minimise {
+    input:
+    path mini_tpr
+    path topol_file
+
+    output:
+    path("${params.mini_prefix}.gro"), emit: gro_mini
+    path("${params.mini_prefix}.gro"), emit: edr_mini
+    path("${params.mini_prefix}.gro"), emit: log_mini
+    path("${params.mini_prefix}.gro"), emit: trr_mini
+    path 'topol.top', emit: topology
+
+    shell:
+    """
+    gmx mdrun -v -deffnm ${params.mini_prefix}
+    """
+}
+
 
 process equilibration {
     input:
@@ -174,6 +195,10 @@ workflow {
     prepare_ions_ch = Channel.fromPath("$baseDir/ions.mdp")
     prepare_ionize(prepare_ions_ch, solvate.out.gro_solvated, solvate.out.topology)
     ionize(prepare_ionize.out.ions_tpr, prepare_ionize.out.topology)
+    
+    prepare_minimise_ch = Channel.fromPath("$baseDir/minim.mdp")
+    prepare_minimise(prepare_minimise_ch, ionize.out.gro_ionised, ionize.out.topology)
+    minimise(prepare_minimise.out.mini_tpr, prepare_minimise.out.topology)
 
     }
 

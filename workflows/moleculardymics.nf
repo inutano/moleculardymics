@@ -35,6 +35,7 @@ process preparePDB {
     output:
     path("${params.init}.gro"), emit: gro_input
     path 'topol.top', emit: topology
+    path 'posre.itp', emit: posre_itp
 
     shell:
     """
@@ -115,7 +116,7 @@ process prepare_minimise {
 
     shell:
     """
-    gmx grompp -f ${mini_mdp} -o ${params.mini_prefix}.tpr -c ${gro_file} -p ${topol_file} -maxwarn -1
+    gmx grompp -f ${mini_mdp} -c ${gro_file} -o ${params.mini_prefix}.tpr -p ${topol_file}
     """
 }
 
@@ -139,19 +140,82 @@ process minimise {
 }
 
 
-process equilibration {
+
+
+process prepare_nvt {
     input:
-        path("${params.mini_prefix}.gro")
-        path(topol_top_file)
-        path(index_ndx_file)
+    path nvt_mdp
+    path gro_file
+    path topol_file
+    path posre_itp
+
     output:
-        path("${params.equi_prefix}.tpr")
-    script:
+    path("${params.equi_prefix}.tpr"), emit: nvt_tpr
+    path 'topol.top', emit: topology
+
+    shell:
     """
-    gmx grompp -f ${params.equi_prefix}.mdp -o ${params.equi_prefix}.tpr -c ${params.mini_prefix}.gro -r ${params.init}.gro -p topol.top -n index.ndx
+    gmx grompp -f ${nvt_mdp} -c ${gro_file} -r ${gro_file} -o ${params.equi_prefix}.tpr -p ${topol_file}
+    """
+}
+
+
+process nvt {
+    input:
+    path nvt_tpr
+    path topol_file
+    path posre_itp
+
+    output:
+    path("${params.equi_prefix}.gro"), emit: gro_nvt
+    path("${params.equi_prefix}.gro"), emit: edr_nvt
+    path("${params.equi_prefix}.gro"), emit: log_nvt
+    path("${params.equi_prefix}.gro"), emit: trr_nvt
+    path 'topol.top', emit: topology
+
+    shell:
+    """
     gmx mdrun -v -deffnm ${params.equi_prefix}
     """
 }
+
+
+process prepare_npt {
+    input:
+    path npt_mdp
+    path gro_file
+    path topol_file
+    path posre_itp
+
+    output:
+    path("${params.prod_prefix}.tpr"), emit: npt_tpr
+    path 'topol.top', emit: topology
+
+    shell:
+    """
+    gmx grompp -f ${npt_mdp} -c ${gro_file} -r ${gro_file} -t ${params.equi_prefix}.cpt -o ${params.prod_prefix}.tpr -p ${topol_file}
+    """
+}
+
+
+process npt {
+    input:
+    path nvt_tpr
+    path topol_file
+
+    output:
+    path("${params.prod_prefix}.gro"), emit: gro_npt
+    path("${params.prod_prefix}.gro"), emit: edr_npt
+    path("${params.prod_prefix}.gro"), emit: log_npt
+    path("${params.prod_prefix}.gro"), emit: trr_npt
+    path 'topol.top', emit: topology
+
+    shell:
+    """
+    gmx mdrun -v -deffnm ${params.prod_prefix}
+    """
+}
+
 
 process production {
     input:
@@ -195,12 +259,22 @@ workflow {
     prepare_ions_ch = Channel.fromPath("$baseDir/ions.mdp")
     prepare_ionize(prepare_ions_ch, solvate.out.gro_solvated, solvate.out.topology)
     ionize(prepare_ionize.out.ions_tpr, prepare_ionize.out.topology)
-    
+
     prepare_minimise_ch = Channel.fromPath("$baseDir/minim.mdp")
     prepare_minimise(prepare_minimise_ch, ionize.out.gro_ionised, ionize.out.topology)
     minimise(prepare_minimise.out.mini_tpr, prepare_minimise.out.topology)
 
+    prepare_nvt_ch = Channel.fromPath("$baseDir/nvt.mdp")
+    prepare_nvt(prepare_nvt_ch, minimise.out.gro_mini, minimise.out.topology, preparePDB.out.posre_itp)
+    nvt(prepare_nvt.out.nvt_tpr, prepare_nvt.out.topology)
+
+    prepare_npt_ch = Channel.fromPath("$baseDir/npt.mdp")
+    prepare_nvt(prepare_npt_ch, nvt.out.gro_nvt, nvt.out.topology, preparePDB.out.posre_itp)
+    nvt(prepare_nvt.out.nvt_tpr, prepare_nvt.out.topology)
+
+
     }
+
 
 
 

@@ -26,60 +26,66 @@ params.init = 'input'
 params.mini_prefix = 'mini'
 params.equi_prefix = 'nvt'
 params.prod_prefix = 'npt'
-params.pdb = 'input.pdb'
+
 
 process preparePDB {
     input:
-    path input	
+    path pdb_file
 
     output:
-    path("${params.init}.gro")
+    path("${params.init}.gro"), emit: gro_input
+    path 'topol.top', emit: topology
 
     shell:
-    '''
-    gmx pdb2gmx -f ${input} -o ${params.init}.gro -water spce
-    '''
+    """
+    echo 6 | gmx pdb2gmx -f ${pdb_file} -o ${params.init}.gro -water spce
+    """
 }
 
 process createNewBox {
     input:
-    path ${params.init}.gro"
+    path gro_file
 
     output:
-    path("${params.init}_processed.gro")
+    path("${params.init}_processed.gro"), emit: gro_processed
 
     shell:
-    '''
-    gmx editconf -f ${params.init}.gro" -o ${params.init}_processed.gro -c -d 1.0 -bt cubic
-    '''
+    """
+    gmx editconf -f ${gro_file} -o ${params.init}_processed.gro -c -d 1.0 -bt cubic
+    """
 }
+
 
 process solvate {
     input:
-    path input
-    output:
-    path("${params.init}_solvated.gro")
-    path("topol.top")
+    path gro_file
+    path topol_file
 
+    output:
+    path("${params.init}_solvated.gro"), emit: gro_solvated
+    path 'topol.top', emit: topology
 
     shell:
-    '''
-    gmx genbox -cp ${input} -cs spc216.gro -o ${params.init}_solvated.gro -p topol.top
-    '''
+    """
+    gmx solvate -cp ${gro_file} -cs spc216.gro -o ${params.init}_solvated.gro -p ${topol_file}
+    """
 }
 
 process ionize {
     input:
-    path input
+    path gro_file
+    path topol_file
+
     output:
-    path("${params.init}_ionized.gro")
-    path("topol.top")
+    path("${params.init}_ionized.gro"), emit: gro_ionised
+    path 'ions.tpr', emit: ions_tpr
+    path 'topol.top', emit: topology
 
     shell:
-    '''
-    gmx grompp -f ions.mdp -c ${input} -p topol.top -o ions.tpr
-    gmx genion -s ions.tpr -o ${input} -p topol.top -pname NA -nname CL -nn 12
-    '''
+    """
+    gmx grompp -f ions.mdp -c ${params.init}_ionized.gro -p ${topol_file} -o ions.tpr
+    gmx genion -s ions.tpr -o ${params.init}_ionized.gro -p ${topol_file} -pname NA -nname CL -nn 12
+    """
 }
 
 
@@ -142,9 +148,21 @@ process figures {
     """
 }
 
-workflow simulation {
-    prepare_PDB_ch = Channel.fromPath(params.pdb)
-    preparePDB(prepare_PDB_ch) | createNewBox | solvate | ionize | minimization | equilibration | production
+workflow {
+
+    prepare_PDB_ch = Channel.fromPath("$baseDir/input.pdb")
+    preparePDB(prepare_PDB_ch).set {PDB}
+    preparePDB.out.topology.view()
+    createNewBox(preparePDB.out.gro_input) 
+    solvate(createNewBox.out.gro_processed, preparePDB.out.topology)
+    ionize(solvate.out.gro_solvate, solavte.out.topology)
+     
+    }
+
+
+// workflow simulation {
+//    prepare_PDB_ch = Channel.fromPath(params.pdb)
+ //   preparePDB(prepare_PDB_ch) | createNewBox | solvate | ionize | minimization | equilibration | production
     
 //    createNewBox_ch = Channel.fromPath('topol.top')
 //    ch2 = Channel.fromPath('index.ndx')

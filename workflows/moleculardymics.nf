@@ -75,6 +75,7 @@ process ionize {
     input:
     path gro_file
     path topol_file
+    path ions_mdp
 
     output:
     path("${params.init}_ionized.gro"), emit: gro_ionised
@@ -155,7 +156,9 @@ workflow {
     preparePDB.out.topology.view()
     createNewBox(preparePDB.out.gro_input) 
     solvate(createNewBox.out.gro_processed, preparePDB.out.topology)
-    ionize(solvate.out.gro_solvate, solavte.out.topology)
+    
+    prepare_ions_ch = Channel.fromPath("$baseDir/ions.mdp")
+    ionize(prepare_ions_ch, solvate.out.gro_solvate, solavte.out.topology)
      
     }
 

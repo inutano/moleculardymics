@@ -83,8 +83,8 @@ process ionize {
 
     shell:
     """
-    gmx grompp -f ions.mdp -c ${params.init}_ionized.gro -p ${topol_file} -o ions.tpr
-    gmx genion -s ions.tpr -o ${params.init}_ionized.gro -p ${topol_file} -pname NA -nname CL -nn 12
+    gmx grompp -f ions.mdp -c ${params.init}_solvated.gro -p ${topol_file} -o ions.tpr
+    gmx genion -s ions.tpr -o ${params.init}_ionized.gro -p ${topol_file} -pname NA -nname CL -neutral
     """
 }
 

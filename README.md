@@ -13,7 +13,7 @@
 
 <!-- TODO nf-core: Write a 1-2 sentence summary of what data the pipeline is for and what it does -->
 
-**md/moleculardymics** is a bioinformatics best-practice analysis pipeline for This workflow for molecular dynamics simulation of proteins.
+**md/moleculardymics** is a bioinformatics best-practice analysis pipeline for molecular dynamics simulation of proteins.
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible. The [Nextflow DSL2](https://www.nextflow.io/docs/latest/dsl2.html) implementation of this pipeline uses one container per process which makes it much easier to maintain and update software dependencies. Where possible, these processes have been submitted to and installed from [nf-core/modules](https://github.com/nf-core/modules) in order to make them available to all nf-core pipelines, and to everyone within the Nextflow community!
 
@@ -36,6 +36,7 @@ On release, automated continuous integration tests run the pipeline on a full-si
 9. Equilibrate the System (NPT)
 10. Free Molecular Dynamics Simulation
 11. Post-processing and Visualizing Resulting 3D Trajectory
+12. Analayse the trajectories
 
 ## Quick Start
 
